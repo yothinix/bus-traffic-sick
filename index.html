@@ -1,0 +1,341 @@
+<title>Depot Dash</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow:wght@500;700&display=swap">
+<style>
+/* Layout: one phone-width column — header, curb queue, holding bays, asphalt lot, power-up bar. Single night-depot look. */
+:root{--asphalt:#1f2226;--lot:#2b2f35;--paint:#f2c230;--fg:#eef0f2;--muted:#9aa1ab;--bay:#353a42;--shade:rgba(0,0,0,.28);
+--display:"Bungee",Impact,system-ui,sans-serif;--body:"Barlow",system-ui,sans-serif;color-scheme:dark}
+html,body{height:100%;box-sizing:border-box}
+body{background:var(--asphalt);color:var(--fg);font-family:var(--body);font-size:15px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:10px;display:flex;flex-direction:column;align-items:center;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.wrap{position:relative;width:100%;max-width:480px;flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}
+#field{position:relative;flex:1;min-height:0;display:grid;place-items:center}
+#combo{position:absolute;top:6px;left:50%;translate:-50% 0;z-index:3;display:flex;flex-direction:column;align-items:center;background:var(--paint);color:var(--asphalt);font-family:var(--display);font-size:15px;line-height:1.2;padding:6px 14px;border-radius:999px;pointer-events:none;white-space:nowrap;box-shadow:0 6px 18px var(--shade)}
+#combo small{font-family:var(--body);font-weight:700;font-size:11px}
+#combo.pay{font-size:18px;animation:pop .35s}
+#coins.bump{animation:pop .35s}
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:4}
+@keyframes pop{50%{scale:1.15}}
+header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tools{display:flex;gap:6px}
+h1{font-family:var(--display);font-size:20px;margin:0;color:var(--paint);font-weight:400}
+.stat{display:flex;flex-direction:column;align-items:center;font-family:var(--display);font-size:12px;letter-spacing:.06em;line-height:1.3}
+.lvl{color:var(--muted)}#coins{color:var(--paint);font-variant-numeric:tabular-nums}
+button.ui{font:700 14px var(--body);background:var(--bay);color:var(--fg);border:0;border-radius:6px;padding:8px 14px;cursor:pointer}
+button.ui.go{background:var(--paint);color:var(--asphalt)}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+#queue{display:flex;gap:4px;align-items:center;min-height:30px;padding-top:12px;flex-wrap:nowrap;overflow:hidden}
+.p{position:relative;flex:none;width:20px;height:24px;border-radius:10px 10px 4px 4px;display:grid;place-items:center;font-size:11px;color:#fff;text-shadow:0 1px 1px var(--shade)}
+.p.front{width:26px;height:30px;font-size:14px;box-shadow:0 0 0 2px var(--fg)}
+.p.vip::before{content:"♛";position:absolute;top:-12px;font-size:11px;color:var(--paint)}
+.p.vip,.bus.vip,.bb.vip{outline:3px solid var(--paint);outline-offset:-3px}
+.more{font-weight:700;color:var(--muted);padding-left:4px;font-variant-numeric:tabular-nums}
+#bays{display:grid;gap:6px}
+.bay{height:52px;border:2px dashed var(--paint);border-radius:6px;display:grid;place-items:center;overflow:hidden;min-width:0}
+.bay.lane{border-style:solid;background:rgba(242,194,48,.1)}
+.bay.lane:empty::before{content:"EXPRESS";font-family:var(--display);font-size:9px;color:var(--paint)}
+.bb{width:86%;height:40px;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-shadow:0 1px 1px var(--shade);box-shadow:inset 0 -4px 0 var(--shade);transition:transform .3s,opacity .3s}
+.bb span{font-size:16px;line-height:1}.bb small{font-size:10px;letter-spacing:1px}
+.bb.arrive{opacity:.35;transform:scale(.85)}.bb.leave{opacity:0;transform:translateY(-40px)}
+#lot{position:relative;background:var(--lot);border-radius:8px;overflow:hidden;background-image:linear-gradient(var(--shade) 1px,transparent 1px),linear-gradient(90deg,var(--shade) 1px,transparent 1px)}
+#lot.picking{box-shadow:0 0 0 3px var(--paint)}
+.bus{position:absolute;border:0;border-radius:8px;padding:0;color:#fff;cursor:pointer;display:grid;place-items:center;box-shadow:inset 0 -5px 0 var(--shade);transition:transform .3s ease-in,opacity .3s,background-color .3s;text-shadow:0 1px 1px var(--shade)}
+.bus b{font-size:18px}.bus i{position:absolute;top:2px;left:4px;font-style:normal;font-size:11px}
+.bus u{position:absolute;bottom:2px;right:5px;font-size:11px;font-weight:700;text-decoration:none}
+.shake{animation:shake .3s}
+@keyframes shake{25%{translate:-4px 0}75%{translate:4px 0}}
+#powers{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pw{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;background:var(--bay);border:0;border-radius:8px;color:var(--fg);font:700 12px var(--body);cursor:pointer;min-width:0}
+.pw .ic{font-size:20px;line-height:1.1}.pw .cost{color:var(--paint);font-variant-numeric:tabular-nums}
+.pw:disabled{opacity:.38;cursor:default}.pw.on{box-shadow:0 0 0 2px var(--paint)}
+#msg{margin:0;color:var(--paint);font-weight:700;text-align:center}
+#help{position:absolute;top:46px;left:0;right:0;z-index:5;background:var(--lot);border:2px solid var(--paint);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 8px 24px var(--shade)}
+#help::before{content:"";position:absolute;top:-8px;right:92px;width:12px;height:12px;background:var(--lot);border:2px solid var(--paint);border-width:2px 0 0 2px;rotate:45deg}
+#help p{color:var(--fg);font-size:14px;line-height:1.45;margin:0;text-wrap:pretty}
+#help button{align-self:flex-end}
+#over{position:fixed;inset:0;z-index:6;background:rgba(10,12,14,.78);display:grid;place-items:center;padding:16px}
+.card{background:var(--lot);border-top:4px solid var(--paint);border-radius:8px;padding:22px;max-width:320px;width:100%;display:flex;flex-direction:column;gap:12px;text-align:center}
+.card h2{font-family:var(--display);font-weight:400;margin:0;font-size:22px;color:var(--paint)}
+.card p{margin:0;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.bus,.bb{transition:none}.shake{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Depot Dash</h1>
+    <div class="stat"><span class="lvl" id="lvl"></span><span id="coins"></span></div>
+    <div class="tools"><button class="ui" id="helpBtn" aria-expanded="false" aria-controls="help" aria-label="How to play">?</button><button class="ui" id="restart">Restart</button></div>
+  </header>
+  <div id="help" hidden>
+    <p>Tap a bus whose road is clear to send it to a bay. Riders board buses that match their color; the number on a bus is its seats, and long buses take up two spaces. Crowned VIP riders only ride the gold-trimmed VIP bus of their color. If every bay fills up and the front rider has no matching bus, you're stuck.</p>
+    <p>Clearing a level earns 10 coins, or 20 if you used no power-ups. Each power-up works once per level. Tow lifts any bus, even a blocked one, into the express lane. Shuffle repaints the buses still in the lot. Rush seats riders from anywhere in line on the buses already in the bays. Extra bay opens one more bay for this level.</p>
+    <p>Riders who board one after another without a pause make a run. Park buses for riders further back in line first, then send in the bus the front rider needs, and the whole line boards in one go. A run of 10 riders earns 2 coins, 15 earns 6, 20 earns 12, 30 earns 30.</p>
+    <button class="ui go" id="helpClose">Got it</button>
+  </div>
+  <div class="label">Waiting at the curb</div>
+  <div id="queue"></div>
+  <div class="label">Holding bays</div>
+  <div id="bays"></div>
+  <div id="field"><div id="lot"></div><div id="combo" aria-live="polite" hidden></div></div>
+  <p id="msg" aria-live="polite" hidden></p>
+  <div id="powers"></div>
+</div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div id="over" hidden><div class="card"><h2 id="ovT"></h2><p id="ovP"></p><button class="ui go" id="ovB"></button><button class="ui" id="ovB2" hidden>Use a power-up</button></div></div>
+
+<script>
+const COLORS=[["#e5484d","●","red"],["#3e8ef7","■","blue"],["#22a861","▲","green"],["#e8900c","◆","orange"],["#9b5ff0","★","purple"],["#e0479f","♥","pink"],["#139f9f","✚","teal"]];
+const DIRS=[[0,-1,"▲","up"],[1,0,"▶","right"],[0,1,"▼","down"],[-1,0,"◀","left"]];
+const BAYS=4,$=id=>document.getElementById(id);
+const POWERS=[{id:"tow",icon:"⤒",name:"Tow",cost:40},{id:"shuffle",icon:"⤮",name:"Shuffle",cost:25},{id:"rush",icon:"»",name:"Rush",cost:30},{id:"bay",icon:"+",name:"Extra bay",cost:50}];
+
+function rng(a){return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+// (x,y) is the front cell; the road ahead starts there, so a long bus only checks from its nose.
+function blocked(occ,W,H,x,y,d){const[dx,dy]=DIRS[d];for(x+=dx,y+=dy;x>=0&&y>=0&&x<W&&y<H;x+=dx,y+=dy)if(occ[y*W+x])return true;return false}
+function cells(b){const[dx,dy]=DIRS[b.d];return b.len>1?[[b.x,b.y],[b.x-dx,b.y-dy]]:[[b.x,b.y]]}
+// Riders and buses match on key: color plus VIP flag, so VIP is effectively its own color.
+const key=b=>b.c*2+(b.vip?1:0);
+
+// Build in reverse: each new bus must have a clear road past the buses already placed,
+// so removing them last-placed-first always works. Riders follow that order, shuffled in pairs of buses.
+function gen(level){
+  const r=rng(level*7919+13),pick=n=>Math.floor(r()*n),shuffle=a=>a.sort(()=>r()-.5);
+  const W=Math.min(4+(level/3|0),7),H=Math.min(5+(level/3|0),8),nc=Math.min(3+(level/2|0),COLORS.length);
+  const n=Math.min(6+level*2,Math.floor(W*H*.7)),occ=Array(W*H).fill(null),placed=[];
+  for(let t=0;t<4000&&placed.length<n;t++){
+    const x=pick(W),y=pick(H);if(occ[y*W+x])continue;
+    const d=shuffle([0,1,2,3]).find(d=>!blocked(occ,W,H,x,y,d));if(d===undefined)continue;
+    const vip=level>=5&&r()<.15,b={x,y,d,c:pick(nc),vip,len:!vip&&level>=3&&r()<.35?2:1};
+    if(cells(b).some(([cx,cy])=>cx<0||cy<0||cx>=W||cy>=H||occ[cy*W+cx]))b.len=1;
+    b.cap=vip?2:b.len>1?5:level>=2&&r()<.3?2:3;
+    cells(b).forEach(([cx,cy])=>occ[cy*W+cx]=b);placed.push(b);
+  }
+  const order=placed.slice().reverse(),queue=[];
+  for(let i=0;i<order.length;i+=2)queue.push(...shuffle(order.slice(i,i+2).flatMap(b=>Array(b.cap).fill(key(b)))));
+  return{W,H,occ,buses:placed,queue,order};
+}
+
+// Self-check: the intended solution clears every generated level with no power-ups.
+function verify({W,H,buses,queue,order}){
+  const occ=Array(W*H).fill(null),q=queue.slice(),bays=[];buses.forEach(b=>cells(b).forEach(([x,y])=>occ[y*W+x]=b));
+  for(const b of order){
+    if(blocked(occ,W,H,b.x,b.y,b.d)||bays.length>=BAYS)return false;
+    cells(b).forEach(([x,y])=>occ[y*W+x]=null);bays.push({k:key(b),n:0,cap:b.cap});
+    for(let m;q.length&&(m=bays.filter(z=>z.k===q[0]).sort((a,z)=>z.n-a.n)[0]);q.shift())if(++m.n===m.cap)bays.splice(bays.indexOf(m),1);
+  }
+  return q.length===0;
+}
+for(let i=1;i<=60;i++)console.assert(verify(gen(i)),"level "+i+" unsolvable");
+
+let level=1,coins=30,S,pumping=false,saveDoc=null,cs=0;
+try{level=+localStorage.getItem("depotdash.level")||1;const c=localStorage.getItem("depotdash.coins");if(c!==null)coins=+c||0}catch(e){}
+function save(){try{localStorage.setItem("depotdash.level",level);localStorage.setItem("depotdash.coins",coins)}catch(e){}saveDoc?.set({level,coins}).catch(()=>{})}
+// The last bay is the express lane: only Tow can put a bus there.
+const lane=()=>S.bays.length-1,msg=t=>{$("msg").textContent=t;$("msg").hidden=!t};
+
+function start(){
+  S=gen(level);S.bays=Array(BAYS+1).fill(null);S.over=false;S.used={};S.picking=false;pumping=false;
+  S.combo=S.best=S.comboCoins=0;$("combo").hidden=true;
+  $("lvl").textContent="Level "+level;$("over").hidden=true;msg("");
+  $("lot").className="";$("lot").replaceChildren();
+  for(const b of S.buses){b.el=document.createElement("button");b.el.onclick=()=>tap(b);paintBus(b);$("lot").append(b.el)}
+  layout();buildBays();renderQueue();renderPowers();
+}
+
+// Size the lot to whatever space is left between the bays and the power-ups, so the game fits one screen.
+function layout(){
+  if(!S)return;
+  const f=$("field"),lot=$("lot");
+  cs=Math.max(16,Math.floor(Math.min(64,f.clientWidth/S.W,f.clientHeight/S.H)));
+  lot.style.width=S.W*cs+"px";lot.style.height=S.H*cs+"px";lot.style.backgroundSize=cs+"px "+cs+"px";
+  for(const b of S.buses){
+    if(b.gone)continue;
+    const xs=cells(b).map(c=>c[0]),ys=cells(b).map(c=>c[1]),gx=Math.min(...xs),gy=Math.min(...ys);
+    const cw=(Math.max(...xs)-gx+1)*cs,ch=(Math.max(...ys)-gy+1)*cs,vert=b.d%2===0,w=vert?cs*.66:cw-8,h=vert?ch-8:cs*.66;
+    Object.assign(b.el.style,{left:gx*cs+(cw-w)/2+"px",top:gy*cs+(ch-h)/2+"px",width:w+"px",height:h+"px"});
+  }
+}
+new ResizeObserver(layout).observe($("field"));
+
+function paintBus(b){
+  const[col,sym,name]=COLORS[b.c];b.el.className="bus"+(b.vip?" vip":"");b.el.style.background=col;
+  b.el.innerHTML=`<b>${DIRS[b.d][2]}</b><i>${b.vip?"♛":""}${sym}</i><u>${b.cap}</u>`;
+  b.el.setAttribute("aria-label",`${b.vip?"VIP ":""}${name} bus, ${b.cap} seats, facing ${DIRS[b.d][3]}`);
+}
+
+function shake(el){el.classList.remove("shake");void el.offsetWidth;el.classList.add("shake")}
+function bump(el){el.classList.remove("bump");void el.offsetWidth;el.classList.add("bump")}
+
+// Particle effects on one full-screen canvas; the loop only runs while particles are alive.
+const fx=$("fx"),g=fx.getContext("2d"),parts=[],calm=matchMedia("(prefers-reduced-motion: reduce)");
+function sizeFx(){const d=devicePixelRatio||1;fx.width=innerWidth*d;fx.height=innerHeight*d;g.setTransform(d,0,0,d,0,0)}
+addEventListener("resize",sizeFx);sizeFx();
+const center=el=>{const r=el.getBoundingClientRect();return[r.left+r.width/2,r.top+r.height/2]},rnd=(a,b)=>a+Math.random()*(b-a);
+function emit(list){if(calm.matches)return;const idle=!parts.length;parts.push(...list);if(idle)requestAnimationFrame(tick)}
+function puff(x,y,dx,dy){emit(Array.from({length:12},()=>({x,y,vx:-dx*rnd(1,3)+rnd(-.8,.8),vy:-dy*rnd(1,3)+rnd(-.8,.8),r:rnd(3,7),grow:.3,col:"#c8cdd4",a:.55,life:0,max:30})))}
+function confetti(x,y,col,n=22){emit(Array.from({length:n},()=>{const t=rnd(0,7),s=rnd(2,6);return{x,y,vx:Math.cos(t)*s,vy:Math.sin(t)*s-3,fall:.18,r:rnd(2,4),col,flake:true,a:1,life:0,max:rnd(34,48)}}))}
+function coinsFly(x,y,n){const[tx,ty]=center($("coins"));emit(Array.from({length:Math.min(n,14)},(_,i)=>({coin:true,sx:x+rnd(-30,30),sy:y+rnd(-10,10),tx,ty,life:-i*3,max:36})))}
+function tick(){
+  g.clearRect(0,0,innerWidth,innerHeight);
+  for(let i=parts.length;i--;){
+    const p=parts[i];if(++p.life>p.max){parts.splice(i,1);continue}
+    if(p.life<0)continue;
+    const k=p.life/p.max;
+    if(p.coin){
+      const e=k*k*(3-2*k),x=p.sx+(p.tx-p.sx)*e,y=p.sy+(p.ty-p.sy)*e-Math.sin(k*Math.PI)*60;
+      g.fillStyle="#f2c230";g.strokeStyle="#a37a00";g.lineWidth=1.5;g.beginPath();g.arc(x,y,6,0,7);g.fill();g.stroke();continue;
+    }
+    p.x+=p.vx;p.y+=p.vy;p.vy+=p.fall||0;p.vx*=.95;if(!p.fall)p.vy*=.95;p.r+=p.grow||0;
+    g.globalAlpha=p.a*(1-k);g.fillStyle=p.col;
+    if(p.flake)g.fillRect(p.x,p.y,p.r*2,p.r*Math.abs(Math.cos(p.life/4)));else{g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill()}
+    g.globalAlpha=1;
+  }
+  if(parts.length)requestAnimationFrame(tick);
+}
+
+function tap(b){
+  if(S.over||b.gone)return;
+  if(S.picking){S.picking=false;$("lot").className="";spend("tow");msg("");return drive(b,lane(),true)}
+  const slot=S.bays.findIndex((z,i)=>!z&&i<lane());
+  if(slot<0||blocked(S.occ,S.W,S.H,b.x,b.y,b.d))return shake(slot<0?$("bays"):b.el);
+  drive(b,slot,false);
+}
+function drive(b,slot,lifted){
+  b.gone=true;cells(b).forEach(([x,y])=>S.occ[y*S.W+x]=null);b.el.disabled=true;
+  const[dx,dy]=DIRS[b.d],dist=(S.W+S.H)*cs;
+  const[cx,cy]=center(b.el),half=Math.max(b.el.offsetWidth,b.el.offsetHeight)/2;
+  lifted?confetti(cx,cy,"#f2c230"):puff(cx-dx*half,cy-dy*half,dx,dy);
+  if(lifted)Object.assign(b.el.style,{transform:"translateY(-24px) scale(1.25)",opacity:0});
+  else b.el.style.transform=`translate(${dx*dist}px,${dy*dist}px)`;
+  const bay=S.bays[slot]={k:key(b),cap:b.cap,n:0,ready:false};renderBays();
+  setTimeout(()=>{b.el.remove();bay.ready=true;renderBays();pump()},300);
+}
+
+function depart(m){m.leaving=true;if(m.el){const[x,y]=center(m.el);confetti(x,y,COLORS[m.k>>1][0])}setTimeout(()=>{S.bays[S.bays.indexOf(m)]=null;renderBays();renderPowers();pump()},350)}
+function pump(){if(!pumping&&!S.over){pumping=true;step()}}
+function step(){
+  const q=S.queue;
+  if(!q.length){pumping=false;endCombo();return end(true)}
+  const m=S.bays.filter(b=>b&&b.ready&&!b.leaving&&b.k===q[0]).sort((a,z)=>z.n-a.n)[0];
+  if(!m){
+    pumping=false;
+    // A bus still pulling in keeps the run alive, so quick taps chain together.
+    if(!S.bays.some(b=>b&&!b.ready))endCombo();
+    const settled=!S.bays.some(b=>b&&(!b.ready||b.leaving));
+    if(settled&&S.bays.slice(0,lane()).every(Boolean))end(false);
+    return renderPowers();
+  }
+  q.shift();showCombo(++S.combo);if(++m.n===m.cap)depart(m);
+  renderQueue();renderBays();setTimeout(step,110);
+}
+
+// Runs pay more the longer they get: 10 riders earn 2 coins, 15 earn 6, 20 earn 12, 30 earn 30.
+function comboBonus(n){const t=Math.floor(n/5)-1;return t>0?t*(t+1):0}
+console.assert(comboBonus(9)===0&&comboBonus(10)===2&&comboBonus(20)===12&&comboBonus(30)===30,"comboBonus");
+let comboTimer;
+function showCombo(n){
+  if(n<3)return;
+  clearTimeout(comboTimer);const next=Math.max(10,(Math.floor(n/5)+1)*5),el=$("combo");
+  el.className="";el.hidden=false;el.innerHTML=`${n} in a row<small>${next-n} more for +${comboBonus(next)} coins</small>`;
+}
+function endCombo(){
+  const n=S.combo,bonus=comboBonus(n),el=$("combo");S.combo=0;S.best=Math.max(S.best,n);
+  clearTimeout(comboTimer);
+  if(!bonus){el.hidden=true;return}
+  coins+=bonus;S.comboCoins+=bonus;save();renderPowers();
+  el.className="pay";el.innerHTML=`${n}-rider run<small>+${bonus} coins</small>`;
+  const[x,y]=center(el);confetti(x,y,"#f2c230",30);coinsFly(x,y,bonus);setTimeout(()=>bump($("coins")),650);
+  comboTimer=setTimeout(()=>el.hidden=true,1800);
+}
+
+function canUse(p){
+  if(S.used[p.id]||coins<p.cost)return false;
+  if(p.id==="tow")return !S.bays[lane()];
+  if(p.id==="shuffle")return S.buses.filter(b=>!b.gone).length>1;
+  if(p.id==="rush")return S.bays.some(b=>b&&b.ready&&!b.leaving&&b.n<b.cap&&S.queue.includes(b.k));
+  return true;
+}
+function spend(id){coins-=POWERS.find(p=>p.id===id).cost;S.used[id]=true;save();renderPowers()}
+
+function usePower(id){
+  const p=POWERS.find(p=>p.id===id);
+  if(id==="tow"&&S.picking){S.picking=false;$("lot").className="";msg("");return renderPowers()}
+  if(S.over||!canUse(p))return;
+  if(id==="tow"){S.picking=true;$("lot").className="picking";msg("Tap any bus to tow it to the express lane.");return renderPowers()}
+  if(id==="shuffle"){
+    // Swap colors only between buses with the same seat count, so every rider still has exactly enough seats.
+    const left=S.buses.filter(b=>!b.gone);
+    for(const cap of new Set(left.map(b=>b.cap))){
+      const g=left.filter(b=>b.cap===cap),ks=g.map(key).sort(()=>Math.random()-.5);
+      g.forEach((b,i)=>{b.c=ks[i]>>1;b.vip=!!(ks[i]&1);paintBus(b)});
+    }
+  }
+  if(id==="rush")for(const b of S.bays){
+    if(!b||!b.ready||b.leaving)continue;
+    for(let i=0;i<S.queue.length&&b.n<b.cap;)S.queue[i]===b.k?(S.queue.splice(i,1),b.n++):i++;
+    if(b.n===b.cap)depart(b);
+  }
+  if(id==="bay"){S.bays.splice(lane(),0,null);buildBays()}
+  spend(id);renderQueue();renderBays();pump();
+}
+
+function renderPowers(){
+  $("coins").textContent=coins+" coins";
+  $("powers").replaceChildren(...POWERS.map(p=>{
+    const el=document.createElement("button"),on=p.id==="tow"&&S.picking;
+    el.className="pw"+(on?" on":"");el.disabled=!on&&(S.over||!canUse(p));
+    el.innerHTML=`<span class="ic" aria-hidden="true">${p.icon}</span>${p.name}<span class="cost">${on?"Cancel":S.used[p.id]?"Used":p.cost+" coins"}</span>`;
+    el.onclick=()=>usePower(p.id);return el;
+  }));
+}
+function renderQueue(){
+  const q=S.queue,shown=q.slice(0,Math.max(6,Math.floor(($("queue").clientWidth-40)/24)));
+  $("queue").innerHTML=shown.map((k,i)=>`<span class="p${i?"":" front"}${k&1?" vip":""}" style="background:${COLORS[k>>1][0]}">${COLORS[k>>1][1]}</span>`).join("")+(q.length>shown.length?`<span class="more">+${q.length-shown.length}</span>`:"");
+}
+function buildBays(){
+  $("bays").style.gridTemplateColumns=`repeat(${S.bays.length},1fr)`;
+  $("bays").replaceChildren(...S.bays.map((_,i)=>{const d=document.createElement("div");d.className="bay"+(i===lane()?" lane":"");return d}));
+  renderBays();
+}
+function renderBays(){
+  const slots=$("bays").children;
+  S.bays.forEach((b,i)=>{
+    if(!b)return slots[i].replaceChildren();
+    if(!b.el){b.el=document.createElement("div");b.el.className="bb"+(b.k&1?" vip":"");b.el.style.background=COLORS[b.k>>1][0]}
+    if(slots[i].firstChild!==b.el)slots[i].replaceChildren(b.el);
+    b.el.classList.toggle("arrive",!b.ready);b.el.classList.toggle("leave",!!b.leaving);
+    b.el.innerHTML=`<span>${b.k&1?"♛":""}${COLORS[b.k>>1][1]}</span><small>${"●".repeat(b.n)}${"○".repeat(b.cap-b.n)}</small>`;
+  });
+}
+
+function end(won){
+  S.over=true;S.picking=false;$("lot").className="";renderPowers();
+  let earned=0;
+  if(won)for(let i=0;i<5;i++)setTimeout(()=>confetti(innerWidth*rnd(.2,.8),innerHeight*rnd(.2,.5),COLORS[i][0],30),i*120);
+  if(won){earned=Object.keys(S.used).length?10:20;coins+=earned;level++;save();renderPowers()}
+  const rescue=!won&&POWERS.some(canUse);
+  setTimeout(()=>{
+    $("ovT").textContent=won?"Depot cleared":"Gridlock";
+    $("ovP").textContent=won?`Every rider got a seat. +${earned} coins${earned>10?", with the no-power-up bonus":""}. Longest run: ${S.best} riders${S.comboCoins?`, and runs earned ${S.comboCoins} coins`:""}.`:rescue?"Every bay is full and the front rider has no bus. A power-up might get you out.":"Every bay is full and the front rider has no bus.";
+    $("ovB").textContent=won?"Next level":"Try again";$("ovB2").hidden=!rescue;$("over").hidden=false;$("ovB").focus();
+  },won?400:150);
+}
+
+$("ovB").onclick=start;$("restart").onclick=start;
+const help=open=>{$("help").hidden=!open;$("helpBtn").setAttribute("aria-expanded",open)};
+$("helpBtn").onclick=e=>{e.stopPropagation();help($("help").hidden)};$("helpClose").onclick=()=>help(false);
+document.addEventListener("click",e=>{if(!$("help").contains(e.target))help(false)});
+$("ovB2").onclick=()=>{S.over=false;$("over").hidden=true;renderPowers();msg("Pick a power-up to get unstuck.")};
+start();
+
+// Sync progress to the signed-in account so it follows you across browsers; local storage stays the offline fallback.
+(async()=>{
+  const user=await window.claude?.use("user"),db=user&&await window.claude.use("db"),id=user&&await user.id();
+  if(!db||!id)return;
+  saveDoc=db.doc(`data/users/${id}/progress`);
+  const s=await saveDoc.get(),d=s.exists?s.data():{},saved=+d.level||0;
+  if(saved>level){level=saved;coins=typeof d.coins==="number"?d.coins:coins;save();start()}
+  else if(saved===level&&typeof d.coins==="number"){coins=d.coins;save();renderPowers()}
+  else await saveDoc.set({level,coins});
+})().catch(()=>{});
+</script>
